@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-changeme-internal-key}
+      - UPSTREAM_BASE_URL=${UPSTREAM_BASE_URL:-https://openrouter.ai/api}
+      - UPSTREAM_API_KEY=${UPSTREAM_API_KEY:-}
+      - REDIS_URL=redis://redis:6379/0
+      - DAILY_BUDGET_LIMIT=${DAILY_BUDGET_LIMIT:-5.0}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_data:
