@@ -79,75 +79,36 @@ docker compose up --build -d
 
 Pour vérifier : Ouvrez `http://localhost:8000/health` dans un navigateur. Vous devriez voir `{"status": "ok"}`.
 
-## 4. Modification d'OpenClaw
+## 4. Configuration d'OpenClaw
 
-Maintenant, configurez OpenClaw pour utiliser le proxy au lieu de contacter directement le fournisseur.
+Puisque OpenClaw a déjà une configuration IA en place, l'intégration se fait de manière intuitive via la config (fichier ou variables d'environnement), sans modifier le code source.
 
-### Changements Nécessaires
-Dans le code d'OpenClaw (probablement dans un fichier comme `api_client.py` ou similaire) :
-1. **Changez l'URL de base** : Remplacez l'URL du fournisseur par `http://localhost:8000` (ou l'IP de votre serveur).
-2. **Ajoutez l'authentification** : Incluez le header `Authorization: Bearer <INTERNAL_API_KEY>` dans chaque requête.
+### Étape 1 : Configurer l'URL de Base et la Clé API
+Dans le fichier de configuration d'OpenClaw (ex. `.env`, `config.json`, ou équivalent selon votre setup) :
+- Changez l'URL de base de l'API IA vers `http://localhost:8000`.
+- Changez la clé API vers la clé interne du proxy (`ma-cle-secrete-123` par défaut).
+- Gardez les autres paramètres (modèle) inchangés.
 
-### Exemple de Code (Python avec httpx ou requests)
-Supposons qu'OpenClaw utilise `requests` pour appeler l'API :
+Exemple pour un fichier `.env` dans OpenClaw :
+```
+# Avant (direct vers fournisseur)
+OPENAI_BASE_URL=https://openrouter.ai/api
+OPENAI_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxx
 
-**Avant (direct vers le fournisseur)** :
-```python
-import requests
-
-response = requests.post(
-    "https://openrouter.ai/api/v1/chat/completions",
-    headers={
-        "Authorization": "Bearer sk-or-v1-xxxxxx",
-        "Content-Type": "application/json",
-    },
-    json={
-        "model": "openai/gpt-4o-mini",
-        "messages": [{"role": "user", "content": "Bonjour !"}],
-        "stream": True,
-    },
-)
+# Après (via AI Firewall)
+OPENAI_BASE_URL=http://localhost:8000
+OPENAI_API_KEY=ma-cle-secrete-123
 ```
 
-**Après (via AI Firewall)** :
+### Étape 2 : Redémarrer OpenClaw
+Redémarrez votre instance OpenClaw pour prendre en compte la nouvelle config. L'authentification et le contrôle budgétaire se feront automatiquement côté proxy.
+
+### Si OpenClaw Utilise un SDK
+Certains SDK permettent de configurer l'URL de base dynamiquement. Si c'est le cas, ajoutez cette ligne dans votre code OpenClaw (si nécessaire) :
 ```python
-import requests
-
-response = requests.post(
-    "http://localhost:8000/v1/chat/completions",  # Nouveau URL !
-    headers={
-        "Authorization": "Bearer ma-cle-secrete-123",  # Nouvelle clé !
-        "Content-Type": "application/json",
-    },
-    json={
-        "model": "openai/gpt-4o-mini",
-        "messages": [{"role": "user", "content": "Bonjour !"}],
-        "stream": True,
-    },
-)
+client = OpenAI(base_url="http://localhost:8000", ...)
 ```
-
-- Le reste du code (parsing de la réponse, gestion du streaming) reste identique !
-- Pour le streaming, OpenClaw lira les chunks SSE comme avant.
-
-### Si OpenClaw Utilise un SDK (ex. OpenAI SDK)
-Si OpenClaw utilise le SDK officiel d'OpenAI :
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    api_key="ma-cle-secrete-123",  # Clé interne
-    base_url="http://localhost:8000",  # Proxy URL
-)
-
-response = client.chat.completions.create(
-    model="openai/gpt-4o-mini",
-    messages=[{"role": "user", "content": "Bonjour !"}],
-    stream=True,
-)
-```
-
-- Le SDK gère automatiquement les headers.
+Mais idéalement, utilisez la config pour éviter les changements de code.
 
 ## 5. Test de l'Intégration
 
