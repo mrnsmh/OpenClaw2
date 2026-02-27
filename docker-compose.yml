@@ -18,7 +18,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-changeme-internal-key}
       - UPSTREAM_BASE_URL=${UPSTREAM_BASE_URL:-https://openrouter.ai/api}
